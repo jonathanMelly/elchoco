@@ -1,0 +1,1 @@
+export class Deduplicator{constructor(max=100){this.max=max;this.ids=[];} seen(id){if(this.ids.includes(id)) return true; this.ids.push(id); if(this.ids.length>this.max) this.ids.shift(); return false;}}

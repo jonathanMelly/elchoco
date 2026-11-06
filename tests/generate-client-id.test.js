@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest'; import {generateClientId} from '../src/domain/generate-client-id.js'; describe('clientId',()=>{it('unique',()=>{expect(generateClientId('a')).not.toBe(generateClientId('a'));});});

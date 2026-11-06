@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest'; import {Deduplicator} from '../src/domain/deduplicator.js'; describe('dedup',()=>{it('filters',()=>{const d=new Deduplicator(); expect(d.seen('a')).toBe(false); expect(d.seen('a')).toBe(true);});});

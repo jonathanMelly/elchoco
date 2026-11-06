@@ -1,0 +1,13 @@
+{
+  "name":"mqtt-chat",
+  "version":"1.0.0",
+  "type":"module",
+  "engines":{"node":">=24"},
+  "scripts":{
+    "start":"node src/index.js",
+    "test":"vitest run",
+    "test:watch":"vitest"
+  },
+  "dependencies":{"dotenv":"^16.4.5","mqtt":"^5.10.0"},
+  "devDependencies":{"vitest":"^2.1.8"}
+}

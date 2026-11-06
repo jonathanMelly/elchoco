@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest'; import {parseCommand} from '../src/domain/parse-command.js'; describe('parse',()=>{it('private',()=>{expect(parseCommand('@bob hi').type).toBe('private');});});
