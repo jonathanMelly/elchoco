@@ -1,0 +1,263 @@
+:root {
+  --bg: #0b0604;
+  --gold: #ffb13b;
+  --cyan: #38f5ff;
+  --alert: #ff4d6d;
+  --cocoa: #3b1f12;
+}
+
+body {
+  background: var(--bg);
+  color: var(--gold);
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+#fx {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  /* Empty overlay must not block the HUD; attract/intro content turns clicks back on. */
+  pointer-events: none;
+}
+#overlay > * { pointer-events: auto; }
+
+#panels {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---- shell and panels ---- */
+.shell { display: grid; gap: 12px; padding: 16px; max-width: 1200px; margin: 0 auto; }
+.bar { display: grid; grid-template-columns: 1.6fr 1fr 1.5fr; gap: 12px; }
+.card { background: rgba(59, 31, 18, 0.55); border: 1px solid rgba(255, 177, 59, 0.35); border-radius: 10px; padding: 12px 16px; backdrop-filter: blur(4px); }
+h2 { margin: 0 0 6px; font-size: 1.3rem; color: var(--gold); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
+dt { color: #b08a5a; } dd { margin: 0; }
+.clock-time { font: 700 2.2rem ui-monospace, monospace; color: var(--gold); }
+.clock-status, .status { display: flex; gap: 8px; align-items: center; }
+.light { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #555; }
+.light.synced { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.light.stale { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+.light.local { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
+.families, .slots, .log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.slots { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.family .dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; background: #666; }
+.family.up .dot { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+.family.down { opacity: 0.55; }
+.family.mine .fname { color: var(--gold); font-weight: 700; }
+.skew { color: var(--alert); }
+.slot.waiting { opacity: 0.5; }
+.ring { width: 100%; max-height: 170px; }
+.ring-line { fill: none; stroke: rgba(255, 177, 59, 0.3); }
+.ring .node rect { fill: #6b4a33; } .ring .node.up rect { fill: var(--gold); } .ring .node.mine rect { stroke: var(--cyan); stroke-width: 2; }
+.entry.warn { color: var(--gold); } .entry.error { color: var(--alert); }
+.raw { background: #000; padding: 8px; overflow: auto; }
+.options { display: grid; gap: 8px; }
+button { background: var(--cocoa); color: var(--gold); border: 1px solid var(--gold); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button.on { background: var(--gold); color: var(--bg); }
+.detail { position: fixed; inset: 5% 8%; background: rgba(11, 6, 4, 0.96); border: 1px solid var(--gold); border-radius: 12px; padding: 16px; overflow: auto; z-index: 5; }
+.detail[hidden] { display: none; }
+.detail-head { display: flex; justify-content: space-between; margin-bottom: 12px; }
+@media (max-width: 800px) { .bar { grid-template-columns: 1fr; } }
+
+/* ---- territory map ---- */
+.family .dot { background: var(--c, #666); }
+.family.up .dot { box-shadow: 0 0 6px var(--c, var(--gold)); }
+.family.down .dot { background: #666; }
+.ring .node.up rect { fill: var(--c, var(--gold)); }
+.map { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.map-bar { grid-column: 1 / -1; display: flex; gap: 8px; }
+svg.terr { width: 100%; height: 62vh; display: block; background: transparent; border-radius: 4px; touch-action: none; cursor: grab; user-select: none; }
+svg.terr.grab { cursor: grabbing; }
+.zoom { margin-left: auto; display: flex; gap: 4px; }
+.map-card { grid-column: 1 / -1; }
+.map-legend { max-height: 62vh; overflow: auto; }
+svg.terr .npa { stroke: rgba(255, 255, 255, .4); stroke-width: .5px; fill-opacity: .85; vector-effect: non-scaling-stroke; transition: opacity .2s; }
+svg.terr .npa.mine { stroke: var(--gold); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+/* empty land = faint cyan wireframe, claimed land = lit glass */
+svg.terr .free { fill: rgba(56, 245, 255, .03); fill-opacity: 1; stroke: rgba(56, 245, 255, .2); stroke-width: .4px; }
+svg.terr .npa:not(.free) { filter: drop-shadow(0 0 1.5px currentColor); }
+svg.terr .canton { fill: rgba(56, 245, 255, .55); letter-spacing: .5px; font-size: 4px; text-anchor: middle; pointer-events: none; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lrow { cursor: pointer; display: flex; gap: 8px; align-items: center; }
+.lrow.static { cursor: default; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; background: var(--cocoa); }
+.swatch.hatch { background-image: repeating-linear-gradient(45deg, transparent 0 3px, rgba(0,0,0,.6) 3px 5px); }
+.swatch.contested { background: repeating-linear-gradient(45deg, var(--cocoa) 0 3px, var(--alert) 3px 5px); }
+.lcount, .lcont, .credit { color: #b08a5a; font-size: .85rem; }
+.unknown ul { margin: 0; padding-left: 18px; }
+@media (max-width: 800px) { .map { grid-template-columns: 1fr; } }
+
+/* ---- holographic map frame ---- */
+.map-card { background: rgba(6, 12, 14, .38); backdrop-filter: blur(14px) saturate(1.2); border-color: rgba(56, 245, 255, .35); box-shadow: 0 0 24px rgba(56, 245, 255, .08), inset 0 0 40px rgba(56, 245, 255, .04); }
+.map-svg { position: relative; border: 1px solid rgba(56, 245, 255, .18);
+  background:
+    repeating-linear-gradient(0deg, rgba(56, 245, 255, .05) 0 1px, transparent 1px 3px),
+    linear-gradient(rgba(56, 245, 255, .06) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, rgba(56, 245, 255, .06) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(ellipse at center, rgba(8, 20, 24, .35), rgba(0, 0, 0, .6)); }
+.map-svg::before, .map-svg::after { content: ''; position: absolute; width: 18px; height: 18px; pointer-events: none; border: 2px solid var(--cyan); }
+.map-svg::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.map-svg::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+.map-bar button { border-color: rgba(56, 245, 255, .5); color: var(--cyan); background: rgba(56, 245, 255, .06); }
+.map-bar button.on { background: var(--cyan); color: var(--bg); }
+.map-legend { text-shadow: 0 1px 6px #000; }
+.swatch.free { background: rgba(56, 245, 255, .05); border: 1px solid rgba(56, 245, 255, .45); box-sizing: border-box; }
+
+/* ---- round hub: clock dial (canvas, behind) + family ring (SVG) + compact map (centre) ---- */
+.hub-card { display: grid; place-items: center; padding: 8px 0; }
+.hub { position: relative; width: min(100%, 72vh); aspect-ratio: 1; }
+.hub-ring { position: absolute; inset: 0; }
+.hub-ring .ring { width: 100%; height: 100%; max-height: none; display: block; overflow: visible; }
+.hub-ring .ring-line { stroke: none; } /* the dial rings are drawn by the canvas */
+.hub-ring .node rect { filter: drop-shadow(0 0 4px var(--c, var(--gold))); }
+.hub-map { position: absolute; left: 50%; top: 50%; width: 68%; height: 68%; transform: translate(-50%, -50%); padding: 0; border-radius: 50%; overflow: hidden; cursor: zoom-in;
+  background: radial-gradient(circle, rgba(8, 22, 26, .55), rgba(0, 0, 0, .7)); border: 1px solid rgba(56, 245, 255, .45);
+  box-shadow: 0 0 30px rgba(56, 245, 255, .18), inset 0 0 40px rgba(0, 0, 0, .6); backdrop-filter: blur(6px); transition: box-shadow .3s; }
+.hub-map:hover { box-shadow: 0 0 44px rgba(56, 245, 255, .4), inset 0 0 40px rgba(0, 0, 0, .5); }
+.hub-map svg.terr { height: 100%; width: 100%; shape-rendering: geometricPrecision; }
+/* tiny cells + hairline strokes shimmer into pixel noise: draw the compact map without strokes */
+.hub-map svg.terr .npa { stroke: none; }
+.hub-map svg.terr .npa.mine { stroke: var(--gold); stroke-width: 1px; }
+.hub-map svg.terr .free { fill: rgba(56, 245, 255, .09); }
+.hub-ring .node { cursor: pointer; pointer-events: all; }
+.hub-ring .node:hover rect { filter: drop-shadow(0 0 9px var(--c, var(--gold))); }
+.rlabel { fill: #f3dcb0; font-size: 4.6px; letter-spacing: .02em; paint-order: stroke; stroke: rgba(0, 0, 0, .8); stroke-width: 1.2px; pointer-events: none; }
+.node.down .rlabel { fill: #8a6a50; }
+.map-pop.small { inset: 26% 30% auto; max-height: 60vh; }
+.fdetail h3 { margin: 0 0 10px; font-size: 1.5rem; color: var(--c, var(--gold)); }
+.fdetail .dot { display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 3px; background: var(--c, var(--gold)); box-shadow: 0 0 10px var(--c, var(--gold)); }
+.fdetail dl { font-size: 1.05rem; gap: 6px 16px; }
+.badge { font-size: .7rem; padding: 2px 8px; border: 1px solid var(--cyan); color: var(--cyan); border-radius: 10px; vertical-align: middle; }
+
+/* ---- full map pane, animated out of the hub ---- */
+.map-pop-back { position: fixed; inset: 0; z-index: 4; background: rgba(0, 0, 0, .45); backdrop-filter: blur(10px); }
+.map-pop { position: fixed; inset: 4% 6%; z-index: 5; overflow: auto; padding: 16px; border-radius: 14px; background: rgba(6, 12, 14, .82); backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 245, 255, .4); box-shadow: 0 0 50px rgba(56, 245, 255, .15); }
+.map-pop-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.map-pop-head h2 { margin: 0; color: var(--cyan); }
+.map-pop svg.terr { height: 76vh; }
+.map-pop .map-legend { max-height: 76vh; }
+
+/* ---- tech navigation inside the status card ---- */
+.status { flex-direction: column; align-items: stretch; gap: 10px; }
+.status-line { display: flex; gap: 8px; align-items: center; }
+.tech-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+button.tech {
+  position: relative; display: flex; align-items: baseline; gap: 8px; overflow: hidden; border: 0; border-radius: 0; padding: 8px 12px;
+  color: var(--cyan); text-transform: uppercase; letter-spacing: .14em; font-size: .72rem; text-align: left;
+  background: linear-gradient(90deg, rgba(56, 245, 255, .16), rgba(56, 245, 255, .03));
+  box-shadow: inset 0 0 0 1px rgba(56, 245, 255, .5), inset 0 0 14px rgba(56, 245, 255, .08);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: color .2s, box-shadow .2s, background .2s;
+}
+button.tech .idx { color: rgba(56, 245, 255, .45); font: 700 .62rem ui-monospace, monospace; letter-spacing: .05em; }
+button.tech::before { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(180, 255, 255, .45) 50%, transparent 70%); transform: translateX(-120%); transition: transform .55s ease; }
+button.tech:hover { color: #fff; box-shadow: inset 0 0 0 1px var(--cyan), inset 0 0 22px rgba(56, 245, 255, .35), 0 0 12px rgba(56, 245, 255, .45); }
+button.tech:hover::before { transform: translateX(120%); }
+button.tech:focus-visible { outline: 1px dashed var(--cyan); outline-offset: 2px; }
+button.tech.on { background: var(--cyan); color: var(--bg); box-shadow: 0 0 18px rgba(56, 245, 255, .6); }
+button.tech.on .idx { color: rgba(11, 6, 4, .6); }
+
+/* round map: fade the edge so no rectangle or hard border shows inside the circle */
+.hub-map svg.terr { -webkit-mask-image: radial-gradient(circle closest-side, #000 74%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 74%, transparent 100%); }
+
+/* detail pane: same glass as the map pane, tech tabs */
+.detail { background: rgba(6, 12, 14, .88); backdrop-filter: blur(16px); border-color: rgba(56, 245, 255, .4); box-shadow: 0 0 50px rgba(56, 245, 255, .12); }
+.detail-head nav { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Attract + intro (overlay) */
+.attract {
+  position: absolute;
+  left: 0; right: 0; bottom: 14vh;
+  text-align: center;
+}
+.attract-title {
+  color: var(--gold);
+  letter-spacing: 0.3em;
+  font-size: clamp(14px, 2vw, 24px);
+  animation: attract-pulse 3s ease-in-out infinite;
+}
+.attract-enter {
+  margin-top: 1.5rem;
+  padding: 0.7rem 2.4rem;
+  background: transparent;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  letter-spacing: 0.3em;
+  font: inherit;
+  cursor: pointer;
+}
+.attract-enter:hover, .attract-enter:focus { background: var(--gold); color: var(--bg); }
+@keyframes attract-pulse { 50% { opacity: 0.45; } }
+#overlay:not(:empty) { white-space: pre-line; }
+#overlay.intro {
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 14vh; color: var(--gold); letter-spacing: 0.2em;
+  font-size: clamp(14px, 1.8vw, 22px); text-align: center;
+}
+
+.note { opacity: 0.7; font-size: 0.85em; margin: 0 0 0.6rem; }
+.entry .src { opacity: 0.6; font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.1em; }
+.entry.activity { border-left: 2px solid var(--cyan); padding-left: 0.4rem; }
+
+/* Prestep, fades */
+#fx { transition: opacity 2.5s ease; }
+#overlay { transition: opacity 1.2s ease; }
+#overlay.fading { opacity: 0; }
+#panels { animation: panels-in 1.6s ease both; }
+@keyframes panels-in { from { opacity: 0; } to { opacity: 1; } }
+.start { position: absolute; inset: 0; display: grid; place-items: center; background: #000; cursor: pointer; }
+.start-glow {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 30px 10px rgba(255, 177, 59, .45);
+  animation: start-breathe 3.2s ease-in-out infinite;
+}
+.start-text {
+  position: absolute; bottom: 18vh; margin: 0; color: var(--gold); opacity: .6;
+  letter-spacing: .25em; font-size: clamp(12px, 1.4vw, 18px); text-align: center; padding: 0 1rem;
+  animation: attract-pulse 3.2s ease-in-out infinite;
+}
+@keyframes start-breathe {
+  0%, 100% { transform: scale(.6); opacity: .35; }
+  50% { transform: scale(1.6); opacity: 1; }
+}
+
+/* Hub content waits for the big clock to merge into it */
+.hub-ring, .hub-map { transition: opacity 1s ease; }
+#panels.entering .hub-ring, #panels.entering .hub-map { opacity: 0; pointer-events: none; }
+
+/* Readability of the intro texts over the golden rings: lighter ink, dark scrim and halo */
+#overlay.intro, .attract {
+  text-shadow: 0 0 6px #000, 0 0 14px #000, 0 2px 2px #000;
+}
+#overlay.intro {
+  color: #ffe9c2;
+  background: linear-gradient(to top, rgba(11, 6, 4, .92) 0%, rgba(11, 6, 4, .75) 28%, transparent 55%);
+  font-weight: 600;
+}
+.attract {
+  padding: 1.2rem 0 1.6rem;
+  background: radial-gradient(ellipse at center, rgba(11, 6, 4, .88) 35%, transparent 75%);
+}
+.attract-title { color: #ffe9c2; }
+.attract-enter { background: rgba(11, 6, 4, .85); color: #ffe9c2; border-color: #ffe9c2; text-shadow: none; }
+.attract-enter:hover, .attract-enter:focus { background: var(--gold); color: #0b0604; }
+.entry .at { font-variant-numeric: tabular-nums; opacity: .75; margin-right: .3rem; }

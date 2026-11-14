@@ -1,0 +1,22 @@
+{
+  "name": "Los Freeyentes",
+  "zone": [
+    "1000",
+    "1005",
+    "1006",
+    "1009",
+    "1011",
+    "1015",
+    "1052",
+    "1053",
+    "5000"
+  ],
+  "capital": 999999999,
+  "capitalCity": "Aarau",
+  "cacao": [
+    "forastero"
+  ],
+  "bestProduct": "La Branche Corleone",
+  "founded": 1925,
+  "fairtrade": false
+}

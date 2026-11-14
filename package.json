@@ -1,13 +1,28 @@
 {
-  "name":"mqtt-chat",
-  "version":"1.0.0",
-  "type":"module",
-  "engines":{"node":">=24"},
-  "scripts":{
-    "start":"node src/index.js",
-    "test":"vitest run",
-    "test:watch":"vitest"
+  "name": "mqtt-chat",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
   },
-  "dependencies":{"dotenv":"^16.4.5","mqtt":"^5.10.0"},
-  "devDependencies":{"vitest":"^2.1.8"}
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "hud": "vite --config web/vite.config.js",
+    "hud:build": "vite build --config web/vite.config.js",
+    "npa": "node tools/build-npa.js",
+    "convert": "node tools/convert.js",
+    "feed": "node tools/feed.js"
+  },
+  "dependencies": {
+    "d3-delaunay": "^6.0.6",
+    "dotenv": "^16.4.5",
+    "mqtt": "^5.10.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21",
+    "vitest": "^2.1.8"
+  }
 }

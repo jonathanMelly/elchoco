@@ -1,0 +1,23 @@
+{
+  "name": "Guadelarrero",
+  "zone": [
+    "1070",
+    "1071",
+    "1616",
+    "1700",
+    "1801",
+    "1803",
+    "1804",
+    "1805",
+    "1806",
+    "1807",
+    "1815",
+    "1820"
+  ],
+  "capital": 3800000,
+  "capitalCity": "Fribourg FR",
+  "cacao": [
+    "trinitario"
+  ],
+  "bestProduct": "chocoïne"
+}
