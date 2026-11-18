@@ -1,79 +1,131 @@
-import { describe, it, expect, vi } from 'vitest';
-import { EventEmitter } from 'node:events';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { connectBus } from '../../web/src/bus.js';
 import { VALID_VITRINE } from './fixtures.js';
 
-function fakeMqtt() {
-  const client = new EventEmitter();
-  client.subscribe = vi.fn();
-  client.end = vi.fn();
-  const connect = vi.fn(() => client);
-  return { client, mqtt: { connect } };
+class FakeEventSource {
+  static last;
+  constructor(url) {
+    this.url = url;
+    this.readyState = 0;
+    this.listeners = {};
+    this.close = vi.fn();
+    FakeEventSource.last = this;
+  }
+  addEventListener(name, fn) {
+    (this.listeners[name] ??= []).push(fn);
+  }
+  emitEvent(name, data) {
+    for (const fn of this.listeners[name] ?? []) fn({ data });
+  }
 }
 
+function setup(extra = {}) {
+  const store = { ingest: vi.fn(), setRoot: vi.fn() };
+  const onStatus = vi.fn();
+  const bus = connectBus({ store, EventSource: FakeEventSource, onStatus, ...extra });
+  return { store, onStatus, bus, es: FakeEventSource.last };
+}
+
+afterEach(() => vi.useRealTimers());
+
 describe('connectBus', () => {
-  it('subscribes to root/# on connect and reports status', () => {
-    const { client, mqtt } = fakeMqtt();
-    const onStatus = vi.fn();
-    connectBus({ url: 'ws://x:9001', root: 'elchoco', store: { ingest: vi.fn() }, mqtt, onStatus });
+  it('opens the url and reports connecting', () => {
+    const { es, onStatus } = setup();
+    expect(es.url).toBe('/events');
     expect(onStatus).toHaveBeenCalledWith('connecting');
-    const [url, opts] = mqtt.connect.mock.calls[0];
-    expect(url).toBe('ws://x:9001');
-    expect(opts.clientId).toMatch(/^hud-[0-9a-f]+$/);
-    expect(opts.reconnectPeriod).toBe(2000);
-    client.emit('connect');
-    expect(client.subscribe).toHaveBeenCalledWith('elchoco/#', { qos: 1 });
+  });
+
+  it('onopen reports connected', () => {
+    const { es, onStatus } = setup();
+    es.onopen();
     expect(onStatus).toHaveBeenCalledWith('connected');
-    client.emit('reconnect');
-    expect(onStatus).toHaveBeenCalledWith('reconnecting');
-    client.emit('offline');
-    expect(onStatus).toHaveBeenCalledWith('offline');
   });
 
-  it('passes username and password to mqtt.connect when set', () => {
-    const { mqtt } = fakeMqtt();
-    connectBus({ url: 'ws://x', username: 'ict', password: '321', root: 'elchoco', store: { ingest: vi.fn() }, mqtt });
-    expect(mqtt.connect.mock.calls[0][1]).toMatchObject({ username: 'ict', password: '321' });
+  it('error while the browser retries reports reconnecting', () => {
+    const { es, onStatus } = setup();
+    es.readyState = 0;
+    es.onerror();
+    expect(onStatus).toHaveBeenLastCalledWith('reconnecting');
   });
 
-  it('passes no credential keys when absent or empty', () => {
-    for (const creds of [{}, { username: '', password: '' }]) {
-      const { mqtt } = fakeMqtt();
-      connectBus({ url: 'ws://x', ...creds, root: 'elchoco', store: { ingest: vi.fn() }, mqtt });
-      const opts = mqtt.connect.mock.calls[0][1];
-      expect('username' in opts).toBe(false);
-      expect('password' in opts).toBe(false);
-    }
+  it('error with readyState CLOSED reports offline', () => {
+    const { es, onStatus } = setup();
+    es.readyState = 2;
+    es.onerror();
+    expect(onStatus).toHaveBeenLastCalledWith('offline');
   });
 
-  it('decodes messages and passes the retain flag', () => {
-    const { client, mqtt } = fakeMqtt();
-    const store = { ingest: vi.fn() };
-    connectBus({ url: 'ws://x', root: 'elchoco', store, mqtt });
-    client.emit('message', 'elchoco/vitrine/maison-dubois', new TextEncoder().encode(VALID_VITRINE), { retain: true });
+  it('message frame is parsed and ingested', () => {
+    const { es, store } = setup();
+    es.onmessage({ data: JSON.stringify({ topic: 'elchoco/vitrine/maison-dubois', payload: VALID_VITRINE, retain: true }) });
     expect(store.ingest).toHaveBeenCalledWith('elchoco/vitrine/maison-dubois', VALID_VITRINE, { retain: true });
   });
 
-  it('retain defaults to false without packet', () => {
-    const { client, mqtt } = fakeMqtt();
-    const store = { ingest: vi.fn() };
-    connectBus({ url: 'ws://x', root: 'elchoco', store, mqtt });
-    client.emit('message', 'elchoco/time', new TextEncoder().encode('{}'));
-    expect(store.ingest.mock.calls[0][2]).toEqual({ retain: false });
+  it('retain missing defaults to false', () => {
+    const { es, store } = setup();
+    es.onmessage({ data: JSON.stringify({ topic: 't', payload: 'p' }) });
+    expect(store.ingest).toHaveBeenCalledWith('t', 'p', { retain: false });
   });
 
-  it('does not throw on error and reports offline', () => {
-    const { client, mqtt } = fakeMqtt();
-    const onStatus = vi.fn();
-    connectBus({ url: 'ws://x', root: 'elchoco', store: { ingest: vi.fn() }, mqtt, onStatus });
-    expect(() => client.emit('error', new Error('boom'))).not.toThrow();
-    expect(onStatus).toHaveBeenCalledWith('offline');
+  it('corrupt frame is ignored', () => {
+    const { es, store } = setup();
+    expect(() => es.onmessage({ data: 'not json' })).not.toThrow();
+    expect(() => es.onmessage({ data: '{"nope":1}' })).not.toThrow();
+    expect(() => es.onmessage({ data: 'null' })).not.toThrow();
+    expect(store.ingest).not.toHaveBeenCalled();
   });
 
-  it('close ends the client', () => {
-    const { client, mqtt } = fakeMqtt();
-    const bus = connectBus({ url: 'ws://x', root: 'elchoco', store: { ingest: vi.fn() }, mqtt });
+  it('broker events map to status', () => {
+    const { es, onStatus } = setup();
+    es.emitEvent('broker', '"down"');
+    expect(onStatus).toHaveBeenLastCalledWith('offline');
+    es.emitEvent('broker', '"up"');
+    expect(onStatus).toHaveBeenLastCalledWith('connected');
+    onStatus.mockClear();
+    es.emitEvent('broker', 'garbage');
+    expect(onStatus).not.toHaveBeenCalled();
+  });
+
+  it('config event sets the store root', () => {
+    const { es, store } = setup();
+    es.emitEvent('config', '{"root":"cartel"}');
+    expect(store.setRoot).toHaveBeenCalledWith('cartel');
+  });
+
+  it('invalid config events are ignored', () => {
+    const { es, store } = setup();
+    for (const d of ['garbage', '{}', '{"root":5}', '{"root":""}', 'null']) expect(() => es.emitEvent('config', d)).not.toThrow();
+    expect(store.setRoot).not.toHaveBeenCalled();
+  });
+
+  it('close closes the EventSource', () => {
+    const { es, bus } = setup();
     bus.close();
-    expect(client.end).toHaveBeenCalledWith(true);
+    expect(es.close).toHaveBeenCalled();
+  });
+
+  it('recreates the EventSource after a fatal close (dev proxy answers 500 while the backend is down)', () => {
+    vi.useFakeTimers();
+    const { es, onStatus } = setup();
+    es.readyState = 2;
+    es.onerror();
+    expect(onStatus).toHaveBeenLastCalledWith('offline');
+    expect(es.close).toHaveBeenCalled();
+    vi.advanceTimersByTime(2000);
+    const next = FakeEventSource.last;
+    expect(next).not.toBe(es);
+    expect(next.url).toBe('/events');
+    next.onopen();
+    expect(onStatus).toHaveBeenLastCalledWith('connected');
+  });
+
+  it('does not reconnect after close()', () => {
+    vi.useFakeTimers();
+    const { es, bus } = setup();
+    es.readyState = 2;
+    es.onerror();
+    bus.close();
+    vi.advanceTimersByTime(5000);
+    expect(FakeEventSource.last).toBe(es);
   });
 });

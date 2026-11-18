@@ -1,4 +1,3 @@
-import mqtt from 'mqtt';
 import { createStore, restoreActivity } from './state/store.js';
 import { createOptions, defaultOptions } from './state/options.js';
 import { connectBus } from './bus.js';
@@ -15,7 +14,6 @@ function safeLocalStorage() {
 const options = createOptions({
   storage: safeLocalStorage(),
   defaults: defaultOptions({
-    hostname: location.hostname || 'localhost',
     reducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
   }),
 });
@@ -60,20 +58,13 @@ let sound = null;
 let shell = null;
 let status = 'connecting';
 
-const connect = () =>
-  connectBus({
-    url: options.get('brokerUrl'),
-    username: options.get('brokerUsername'),
-    password: options.get('brokerPassword'),
-    root: 'elchoco',
-    store,
-    mqtt,
-    onStatus: (s) => {
-      status = s;
-      shell?.setStatus(s);
-    },
-  });
-let bus = connect();
+const bus = connectBus({
+  store,
+  onStatus: (s) => {
+    status = s;
+    shell?.setStatus(s);
+  },
+});
 
 // Black prestep (click = the gesture that unlocks audio) -> rings light up with the intro music, wait on
 // ENTRER -> boot lines and welcome -> fade to the HUD with the lighter music. Without fx: straight to the HUD.
@@ -136,10 +127,7 @@ if (scene) {
 }
 
 options.subscribe(async (key, value) => {
-  if (['brokerUrl', 'brokerUsername', 'brokerPassword'].includes(key)) {
-    bus.close();
-    bus = connect();
-  } else if (key === 'volume' || key === 'muted' || key === 'music') {
+  if (key === 'volume' || key === 'muted' || key === 'music') {
     sound?.update();
   } else if (key === 'effects') {
     if (scene) scene.setIntensity(value);

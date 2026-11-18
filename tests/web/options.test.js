@@ -20,9 +20,8 @@ describe('options', () => {
     expect(o.get('volume')).toBe(0.4);
   });
 
-  it('defaultOptions uses hostname and reduced motion', () => {
-    const d = defaultOptions({ hostname: '10.0.0.5', reducedMotion: true });
-    expect(d.brokerUrl).toBe('ws://10.0.0.5:9001');
+  it('defaultOptions uses reduced motion', () => {
+    const d = defaultOptions({ reducedMotion: true });
     expect(d.effects).toBe('reduced');
   });
 
@@ -75,11 +74,9 @@ describe('options', () => {
     o.set('effects', 'ultra');
     expect(o.get('effects')).toBe('full');
     o.set('myFamily', 'Bad Slug');
-    o.set('brokerUrl', 'http://x');
     o.set('patronName', '');
     o.set('muted', 'yes');
     expect(o.get('myFamily')).toBe('don-freey');
-    expect(o.get('brokerUrl')).toBe('ws://localhost:9001');
     expect(o.get('patronName')).toBe('Don Freey');
     expect(o.get('muted')).toBe(false);
     expect(fn).toHaveBeenCalledTimes(1);
@@ -99,39 +96,16 @@ describe('options', () => {
   });
 });
 
-describe('broker credentials options', () => {
-  it('defaults to empty username and password', () => {
-    const d = defaultOptions();
-    expect(d.brokerUsername).toBe('');
-    expect(d.brokerPassword).toBe('');
-  });
-
-  it('round-trips username and password through storage', () => {
-    const storage = memStorage();
+describe('legacy broker keys', () => {
+  it('ignores legacy broker keys from storage', () => {
+    const storage = memStorage({
+      [KEY]: JSON.stringify({ volume: 0.7, brokerUrl: 'ws://x:9001', brokerUsername: 'ict', brokerPassword: 'secret' }),
+    });
     const o = createOptions({ storage });
-    o.set('brokerUsername', 'ict');
-    o.set('brokerPassword', '321');
-    const again = createOptions({ storage });
-    expect(again.get('brokerUsername')).toBe('ict');
-    expect(again.get('brokerPassword')).toBe('321');
-  });
-
-  it('falls back to empty on a non-string stored value', () => {
-    const o = createOptions({ storage: memStorage({ [KEY]: JSON.stringify({ brokerUsername: 5, brokerPassword: { a: 1 } }) }) });
-    expect(o.get('brokerUsername')).toBe('');
-    expect(o.get('brokerPassword')).toBe('');
-  });
-
-  it('accepts clearing a credential back to empty', () => {
-    const o = createOptions({ storage: memStorage() });
-    o.set('brokerPassword', 'x');
-    o.set('brokerPassword', '');
-    expect(o.get('brokerPassword')).toBe('');
-  });
-
-  it('still accepts a RabbitMQ websocket broker url', () => {
-    const o = createOptions({ storage: memStorage() });
-    o.set('brokerUrl', 'ws://localhost:15675/ws');
-    expect(o.get('brokerUrl')).toBe('ws://localhost:15675/ws');
+    expect(Object.keys(o.all()).filter((k) => k.startsWith('broker'))).toEqual([]);
+    expect(o.get('volume')).toBe(0.7);
+    o.set('muted', true);
+    expect(storage.data[KEY]).not.toContain('secret');
+    expect(storage.data[KEY]).not.toContain('broker');
   });
 });

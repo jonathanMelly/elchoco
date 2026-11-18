@@ -26,7 +26,8 @@ const PRESENCE_TEXT = {
   died: ['error', 'morte (dernière volonté reçue)'],
 };
 
-export function createStore({ root = 'elchoco', now = Date.now } = {}) {
+export function createStore({ root: initialRoot = 'elchoco', now = Date.now } = {}) {
+  let root = initialRoot; // the backend announces the real HUD root (event: config)
   const families = createFamilies();
   const clock = createClock({ now });
   const listeners = new Set();
@@ -39,6 +40,9 @@ export function createStore({ root = 'elchoco', now = Date.now } = {}) {
     lastRejected: null,
     seenKinds: new Set(),
     ingest,
+    setRoot(value) {
+      root = value;
+    },
     subscribe(fn) {
       listeners.add(fn);
       return () => listeners.delete(fn);

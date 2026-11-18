@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "hud": "vite --config web/vite.config.js",
     "hud:build": "vite build --config web/vite.config.js",
+    "hud:serve": "node server/index.js",
     "npa": "node tools/build-npa.js",
     "convert": "node tools/convert.js",
     "feed": "node tools/feed.js"

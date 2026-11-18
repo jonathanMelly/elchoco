@@ -24,7 +24,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === fileURLToPath(new URL(
     args: process.argv.slice(2).filter((a) => a !== '--'),
     options: { common: { type: 'string' }, out: { type: 'string' } },
   });
-  const common = values.common ?? fileURLToPath(new URL('../../elchoco-common/', import.meta.url));
+  const common = values.common ?? fileURLToPath(new URL('../../elchoco-common/families/', import.meta.url));
   const out = values.out ?? fileURLToPath(new URL('../data/vitrines/', import.meta.url));
 
   const families = collectFamilies({ common, npa: loadNpa(), ...nodeFs });

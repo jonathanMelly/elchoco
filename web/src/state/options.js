@@ -2,7 +2,7 @@ import { SLUG_RE } from './protocol.js';
 
 const STORAGE_KEY = 'elchoco.hud.options';
 
-export function defaultOptions({ hostname = 'localhost', reducedMotion = false } = {}) {
+export function defaultOptions({ reducedMotion = false } = {}) {
   return {
     volume: 0.4,
     muted: false,
@@ -10,9 +10,6 @@ export function defaultOptions({ hostname = 'localhost', reducedMotion = false }
     skipIntro: false,
     myFamily: 'don-freey',
     patronName: 'Don Freey',
-    brokerUrl: `ws://${hostname}:9001`,
-    brokerUsername: '',
-    brokerPassword: '',
     music: true,
     humour: true,
     rawLog: false,
@@ -30,9 +27,6 @@ const VALIDATORS = {
   skipIntro: (v) => (isBool(v) ? v : undefined),
   myFamily: (v) => (typeof v === 'string' && SLUG_RE.test(v) ? v : undefined),
   patronName: (v) => (isText(v) ? v : undefined),
-  brokerUrl: (v) => (typeof v === 'string' && /^wss?:\/\/\S+$/.test(v) ? v : undefined),
-  brokerUsername: (v) => (typeof v === 'string' ? v : undefined),
-  brokerPassword: (v) => (typeof v === 'string' ? v : undefined),
   music: (v) => (isBool(v) ? v : undefined),
   humour: (v) => (isBool(v) ? v : undefined),
   rawLog: (v) => (isBool(v) ? v : undefined),

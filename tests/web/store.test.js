@@ -182,3 +182,16 @@ describe('restoreActivity', () => {
     expect(restoreActivity('{"a":1}')).toEqual([]);
   });
 });
+
+describe('store.setRoot', () => {
+  it('parses topics under the new root and ignores the old one', () => {
+    const s = createStore();
+    s.setRoot('cartel');
+    s.ingest('cartel/vitrine/maison-dubois', VALID_VITRINE);
+    s.ingest('cartel/presence/maison-dubois', presence('open'));
+    expect(s.families.list()).toHaveLength(1);
+    const before = s.families.list().length;
+    s.ingest('elchoco/vitrine/autre-famille', VALID_VITRINE);
+    expect(s.families.list()).toHaveLength(before);
+  });
+});

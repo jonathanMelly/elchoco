@@ -2,11 +2,13 @@ import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import mqtt from 'mqtt';
+import config from '../src/config.js';
 import { collectFamilies } from './convert-lib.js';
 import { loadNpa, nodeFs, reportLine } from './convert.js';
 import { heartbeatText, loadFamilies, message } from './feed-lib.js';
 
-const ROOT = 'elchoco';
+// Same root as the HUD backend (HUD_ROOT in .env), so the demo feed always matches what the HUD subscribes to.
+const ROOT = config.hudRoot;
 
 const { values } = parseArgs({
   args: process.argv.slice(2).filter((a) => a !== '--'),
@@ -22,7 +24,7 @@ const { values } = parseArgs({
   },
 });
 
-const common = values.common ?? fileURLToPath(new URL('../../elchoco-common/', import.meta.url));
+const common = values.common ?? fileURLToPath(new URL('../../elchoco-common/families/', import.meta.url));
 const dataDir = fileURLToPath(new URL('../data/vitrines/', import.meta.url));
 const npa = loadNpa();
 const fs = { ...nodeFs, listFiles: (dir) => readdirSync(dir) };

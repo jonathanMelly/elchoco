@@ -11,16 +11,21 @@ pnpm test
 
 ## Console du Patrón (HUD)
 
-Page web qui montre en direct les familles, l'heure du cartel, les services et le journal, depuis MQTT.
+Page web qui montre en direct les familles, l'heure du cartel, les services et le journal. Un petit backend Node (`server/`) se connecte au broker avec les réglages du `.env` et relaie les messages au navigateur en SSE (`GET /events`) : le navigateur ne connaît ni l'adresse du broker ni son mot de passe.
 
 ```
-docker compose up -d broker   # Mosquitto : MQTT 1883 + WebSocket 9001 (ne pas lancer toxiproxy)
+docker compose up -d broker   # Mosquitto (ne pas lancer toxiproxy)
 pnpm feed                     # publie les familles de démonstration (voir plus bas)
-pnpm hud                      # http://localhost:5173
 ```
 
-Depuis une autre machine : `http://<ip>:5173`, puis dans **Options** régler le broker sur `ws://<ip>:9001`.
-`pnpm hud:build` produit `web/dist`.
+### Lancer le HUD
+
+- Production : `pnpm hud:build` puis `pnpm hud:serve` → http://127.0.0.1:3000 (le backend sert aussi `web/dist`).
+- Développement : terminal 1 `pnpm hud:serve`, terminal 2 `pnpm hud` → http://localhost:5173 (Vite relaie `/events` vers le backend).
+
+Réglages dans `.env` : `MQTT_*` (broker), `QOS` (0, 1 ou 2), `HUD_ROOT` (défaut `elchoco`), `HUD_HOST` (défaut `127.0.0.1`), `HUD_PORT` (défaut `3000`).
+`HUD_FAMILY` (vide par défaut) : slug d'une famille que le backend publie lui-même sur le broker (`data/vitrines/<slug>.json`) : vitrine et présence à chaque connexion, battement toutes les 5 s, `died` si le backend tombe, `closed` à l'arrêt propre. `pnpm feed` reste un outil de test.
+En développement, Vite réécrit l'en-tête Host vers le backend pour que `http://<ip>:5173` fonctionne même avec `HUD_HOST=127.0.0.1`. Pour ouvrir le backend lui-même depuis une autre machine : mettre `HUD_HOST=0.0.0.0` dans `.env`, puis ouvrir `http://<ip>:3000` (ou `:5173` en développement).
 
 ### Données de démonstration
 

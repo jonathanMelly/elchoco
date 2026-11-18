@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import families from '../../web/src/panels/families.js';
+import families, { ringView } from '../../web/src/panels/families.js';
 import clock from '../../web/src/panels/clock.js';
 import services, { SERVICE_SLOTS } from '../../web/src/panels/services.js';
 import myFamily from '../../web/src/panels/my-family.js';
@@ -54,6 +54,23 @@ describe('families view', () => {
 
   it('tells when there is no family yet', () => {
     expect(families.view({ families: [], myFamily: 'zz', skews: {} })).toContain('aucune famille');
+  });
+});
+
+describe('family ring', () => {
+  const fam = (id, state) => ({ id, name: id, state });
+  const list = [fam('a', 'open'), fam('b', 'closed'), fam('c', 'died'), fam('d', 'open')];
+
+  it('drops the square of a fallen family and keeps the others', () => {
+    const html = ringView({ families: list, myFamily: 'a', colors: new Map() });
+    expect(html).not.toContain('data-id="c"');
+    expect(html.match(/class="node/g)).toHaveLength(3);
+  });
+
+  it('marks open as up and closed as down', () => {
+    const html = ringView({ families: list, myFamily: 'a', colors: new Map() });
+    expect(html).toMatch(/class="node up[^"]*" data-id="a"/);
+    expect(html).toMatch(/class="node down" data-id="b"/);
   });
 });
 
@@ -196,17 +213,10 @@ describe('log view', () => {
   });
 });
 
-describe('options panel broker credentials', () => {
-  const render = (over = {}) => optionsPanel.view({ options: { ...defaultOptions(), ...over }, familyIds: [] });
-  it('renders a text username input and a password input', () => {
-    const html = render();
-    expect(html).toMatch(/<input type="text" data-key="brokerUsername"/);
-    expect(html).toMatch(/<input type="password" data-key="brokerPassword"/);
-  });
-  it('escapes the credential values', () => {
-    const html = render({ brokerUsername: '"><b>u</b>', brokerPassword: '"><b>p</b>' });
-    expect(html).not.toContain('<b>u</b>');
-    expect(html).not.toContain('<b>p</b>');
+describe('options panel has no broker fields', () => {
+  it('renders no broker input', () => {
+    const html = optionsPanel.view({ options: defaultOptions(), familyIds: [] });
+    for (const k of ['brokerUrl', 'brokerUsername', 'brokerPassword']) expect(html).not.toContain(k);
   });
 });
 

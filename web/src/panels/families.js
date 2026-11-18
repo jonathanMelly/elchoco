@@ -33,9 +33,11 @@ function view({ families, myFamily, skews, colors }) {
 
 /** Compact ring of the families, plain SVG. */
 export function ringView({ families, myFamily, colors }) {
-  const n = families.length;
+  // A fallen family loses its square (it stays in the list and the legend); the others are re-spaced.
+  const alive = families.filter((f) => f.state !== 'died');
+  const n = alive.length;
   const R = 80;
-  const nodes = families
+  const nodes = alive
     .map((f, i) => {
       const a = (2 * Math.PI * i) / n - Math.PI / 2;
       const x = (100 + R * Math.cos(a)).toFixed(1);

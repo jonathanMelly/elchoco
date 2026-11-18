@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import net from 'node:net';
 import { defineConfig } from 'vite';
 
@@ -19,12 +20,21 @@ async function findPort(start) {
   return start;
 }
 
+// The backend (pnpm hud:serve) owns the broker connection; the dev server only proxies its SSE stream.
+// The backend rejects non-loopback Host headers (DNS rebinding guard) when HUD_HOST is a loopback address, so
+// the dev proxy must rewrite Host to the backend's own (changeOrigin) or a LAN visitor on http://<ip>:5173
+// would get 403. With HUD_HOST=0.0.0.0 the guard is off and the original Host is kept. Trade-off: while
+// rewriting, the guard no longer protects /events when it is reached through this dev server (dev only).
+const loopbackBackend = ['127.0.0.1', 'localhost', '::1'].includes(process.env.HUD_HOST ?? '127.0.0.1');
+const backend = `http://127.0.0.1:${process.env.HUD_PORT ?? 3000}`;
+
 export default defineConfig(async () => ({
   root: 'web',
   server: {
     port: await findPort(5173),
     // Reachable from the classroom LAN on purpose (see the HUD spec).
     host: true,
+    proxy: { '/events': { target: backend, changeOrigin: loopbackBackend } },
     // The dev server only serves the web folder and node_modules, never .env or editor backups.
     fs: { strict: true, allow: ['.', '../node_modules'], deny: ['.env*', '**/*~', '../.env*', '../**/*~'] },
   },
