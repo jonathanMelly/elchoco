@@ -63,6 +63,8 @@ let status = 'connecting';
 const connect = () =>
   connectBus({
     url: options.get('brokerUrl'),
+    username: options.get('brokerUsername'),
+    password: options.get('brokerPassword'),
     root: 'elchoco',
     store,
     mqtt,
@@ -134,7 +136,7 @@ if (scene) {
 }
 
 options.subscribe(async (key, value) => {
-  if (key === 'brokerUrl') {
+  if (['brokerUrl', 'brokerUsername', 'brokerPassword'].includes(key)) {
     bus.close();
     bus = connect();
   } else if (key === 'volume' || key === 'muted' || key === 'music') {

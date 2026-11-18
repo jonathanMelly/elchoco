@@ -98,3 +98,40 @@ describe('options', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('broker credentials options', () => {
+  it('defaults to empty username and password', () => {
+    const d = defaultOptions();
+    expect(d.brokerUsername).toBe('');
+    expect(d.brokerPassword).toBe('');
+  });
+
+  it('round-trips username and password through storage', () => {
+    const storage = memStorage();
+    const o = createOptions({ storage });
+    o.set('brokerUsername', 'ict');
+    o.set('brokerPassword', '321');
+    const again = createOptions({ storage });
+    expect(again.get('brokerUsername')).toBe('ict');
+    expect(again.get('brokerPassword')).toBe('321');
+  });
+
+  it('falls back to empty on a non-string stored value', () => {
+    const o = createOptions({ storage: memStorage({ [KEY]: JSON.stringify({ brokerUsername: 5, brokerPassword: { a: 1 } }) }) });
+    expect(o.get('brokerUsername')).toBe('');
+    expect(o.get('brokerPassword')).toBe('');
+  });
+
+  it('accepts clearing a credential back to empty', () => {
+    const o = createOptions({ storage: memStorage() });
+    o.set('brokerPassword', 'x');
+    o.set('brokerPassword', '');
+    expect(o.get('brokerPassword')).toBe('');
+  });
+
+  it('still accepts a RabbitMQ websocket broker url', () => {
+    const o = createOptions({ storage: memStorage() });
+    o.set('brokerUrl', 'ws://localhost:15675/ws');
+    expect(o.get('brokerUrl')).toBe('ws://localhost:15675/ws');
+  });
+});

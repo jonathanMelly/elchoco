@@ -30,6 +30,22 @@ describe('connectBus', () => {
     expect(onStatus).toHaveBeenCalledWith('offline');
   });
 
+  it('passes username and password to mqtt.connect when set', () => {
+    const { mqtt } = fakeMqtt();
+    connectBus({ url: 'ws://x', username: 'ict', password: '321', root: 'elchoco', store: { ingest: vi.fn() }, mqtt });
+    expect(mqtt.connect.mock.calls[0][1]).toMatchObject({ username: 'ict', password: '321' });
+  });
+
+  it('passes no credential keys when absent or empty', () => {
+    for (const creds of [{}, { username: '', password: '' }]) {
+      const { mqtt } = fakeMqtt();
+      connectBus({ url: 'ws://x', ...creds, root: 'elchoco', store: { ingest: vi.fn() }, mqtt });
+      const opts = mqtt.connect.mock.calls[0][1];
+      expect('username' in opts).toBe(false);
+      expect('password' in opts).toBe(false);
+    }
+  });
+
   it('decodes messages and passes the retain flag', () => {
     const { client, mqtt } = fakeMqtt();
     const store = { ingest: vi.fn() };

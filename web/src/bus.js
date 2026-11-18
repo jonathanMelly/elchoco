@@ -1,11 +1,13 @@
 const randomHex = () => Math.random().toString(16).slice(2, 10).padEnd(8, '0');
 
-export function connectBus({ url, root, store, mqtt, onStatus = () => {} }) {
+export function connectBus({ url, username, password, root, store, mqtt, onStatus = () => {} }) {
   onStatus('connecting');
   const client = mqtt.connect(url, {
     clientId: 'hud-' + randomHex(),
     reconnectPeriod: 2000,
     connectTimeout: 5000,
+    ...(username && { username }),
+    ...(password && { password }),
   });
   const decoder = new TextDecoder();
 

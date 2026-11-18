@@ -4,6 +4,8 @@ import clock from '../../web/src/panels/clock.js';
 import services, { SERVICE_SLOTS } from '../../web/src/panels/services.js';
 import myFamily from '../../web/src/panels/my-family.js';
 import log from '../../web/src/panels/log.js';
+import optionsPanel from '../../web/src/panels/options.js';
+import { defaultOptions } from '../../web/src/state/options.js';
 import { panels } from '../../web/src/panels/registry.js';
 import { formatTime, formatSkew, donName } from '../../web/src/panels/format.js';
 
@@ -191,6 +193,20 @@ describe('log view', () => {
   it('hides the raw message when rawLog is off', () => {
     const html = log.view({ ...base, rejected: 1, lastRejected: { topic: 't', reason: 'r', raw: 'SECRETRAW' } });
     expect(html).not.toContain('SECRETRAW');
+  });
+});
+
+describe('options panel broker credentials', () => {
+  const render = (over = {}) => optionsPanel.view({ options: { ...defaultOptions(), ...over }, familyIds: [] });
+  it('renders a text username input and a password input', () => {
+    const html = render();
+    expect(html).toMatch(/<input type="text" data-key="brokerUsername"/);
+    expect(html).toMatch(/<input type="password" data-key="brokerPassword"/);
+  });
+  it('escapes the credential values', () => {
+    const html = render({ brokerUsername: '"><b>u</b>', brokerPassword: '"><b>p</b>' });
+    expect(html).not.toContain('<b>u</b>');
+    expect(html).not.toContain('<b>p</b>');
   });
 });
 

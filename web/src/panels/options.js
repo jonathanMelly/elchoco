@@ -22,6 +22,8 @@ ${checkbox('skipIntro', 'Passer l\'intro', o)}
 <label>Ma famille <select data-key="myFamily">${familyOptions(familyIds, o.myFamily)}</select></label>
 <label>Nom du Patrón <input type="text" data-key="patronName" value="${e(o.patronName)}"></label>
 <label>Broker <input type="text" data-key="brokerUrl" value="${e(o.brokerUrl)}"></label>
+<label>Utilisateur <input type="text" data-key="brokerUsername" value="${e(o.brokerUsername)}" autocomplete="off"></label>
+<label>Mot de passe <input type="password" data-key="brokerPassword" value="${e(o.brokerPassword)}" autocomplete="off"></label>
 ${checkbox('music', 'Musique (chiptune)', o)}
 ${checkbox('humour', 'Humour', o)}
 ${checkbox('rawLog', 'Journal brut', o)}
