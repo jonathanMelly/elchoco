@@ -13,7 +13,7 @@ const DELIVERY = {
 
 /** Contract envelope; key order as in the contract. */
 export function envelope({ from, type, payload, ts = new Date(), to = '*' }) {
-  return { v: 1, id: randomUUID(), from, to, ts: ts.toISOString(), type, payload };
+  return { v: 2, id: randomUUID(), from, to, ts: ts.toISOString(), type, payload };
 }
 
 /** Builds a message and checks its own output: a bug here must never reach the broker. */

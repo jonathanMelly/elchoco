@@ -1,28 +1,15 @@
-import { escapeHtml as e } from '../util/escape.js';
 import { mountReactive } from './reactive.js';
+import { view as cardsView } from './service-cards.js';
 
-// One line per service. A service with a `kind` turns active when that topic root shows up.
-export const SERVICE_SLOTS = [
-  { id: 'horloge', label: 'Horloge', active: (s) => s.clockStatus !== 'local' },
-  { id: 'annuaire', label: 'Annuaire', kind: 'annuaire' },
-  { id: 'journal', label: 'Journal', kind: 'journal' },
-  { id: 'caisse', label: 'Caisse', kind: 'caisse' },
-  { id: 'marche', label: 'Marché', kind: 'marche' },
-  { id: 'moniteur', label: 'Moniteur', kind: 'moniteur' },
-];
-
-const isActive = (slot, s) => (slot.active ? slot.active(s) : s.seenKinds.includes(slot.kind));
-
+// The tab lists what was actually received (a presence announcing kind: service, or a sign of life
+// from a known service), never a predefined list: the placeholders live on the main page cards only.
 function select({ store }) {
-  return { clockStatus: store.clock.status(), logCount: store.log.length, seenKinds: [...store.seenKinds] };
+  return { services: store.services.received(), now: Date.now() };
 }
 
 function view(state) {
-  const slots = SERVICE_SLOTS.map((slot) => {
-    const on = isActive(slot, state);
-    return `<li class="slot ${on ? 'active' : 'waiting'}" data-id="${e(slot.id)}"><span class="light ${on ? 'synced' : 'off'}"></span><span class="slabel">${e(slot.label)}</span> <span class="sstate">${on ? 'ACTIF' : 'EN ATTENTE DU SERVICE'}</span></li>`;
-  }).join('');
-  return `<ul class="slots">${slots}</ul>`;
+  if (!state.services.length) return `<p class="empty">aucun service annoncé pour l'instant</p>`;
+  return `<div class="svc-cards svc-tab">${cardsView(state)}</div>`;
 }
 
 export default {

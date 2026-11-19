@@ -2,6 +2,7 @@ import { escapeHtml as e } from './util/escape.js';
 import { panels } from './panels/registry.js';
 import families, { ringView, mountFamilyDetail } from './panels/families.js';
 import { mountReactive } from './panels/reactive.js';
+import { mountServiceCards } from './panels/service-cards.js';
 import { mountCompact } from './panels/map.js';
 
 const STATUS_LABEL = { connecting: 'connexion…', connected: 'connecté', reconnecting: 'reconnexion…', offline: 'hors ligne' };
@@ -22,8 +23,7 @@ export function mountShell(root, ctx) {
 
   root.innerHTML = `<div class="shell">
 <header class="bar"><div id="c-my-family" class="card"></div><div id="c-clock" class="card"></div><div class="card status"><div class="status-line"><span class="light" id="status-light"></span> <span id="status-text"></span></div><nav class="tech-nav" id="tech-nav">${navView(tabs)}</nav></div></header>
-<section class="hub-card"><div class="hub" id="hub"><div class="hub-ring" id="c-ring"></div><button type="button" class="hub-map" id="hub-map" aria-label="Ouvrir la carte des territoires"></button></div></section>
-<section class="card" id="c-services"></section>
+<section class="hub-card"><div class="hub" id="hub"><div class="hub-ring" id="c-ring"></div><button type="button" class="hub-map" id="hub-map" aria-label="Ouvrir la carte des territoires"></button></div><aside class="svc-zone" aria-label="Services"><h2 class="svc-head">Services</h2><div class="svc-cards" id="c-svc-cards"></div></aside></section>
 <div class="detail" id="detail" hidden>
   <div class="detail-head"><nav id="tabs">${tabs.map((p) => `<button type="button" class="tech" data-tab="${e(p.id)}">${e(p.title)}</button>`).join('')}</nav><button type="button" id="close" aria-label="Fermer">✕</button></div>
   <div class="detail-body" id="detail-body"></div>
@@ -37,11 +37,11 @@ export function mountShell(root, ctx) {
   };
   mountPanel('my-family', '#c-my-family');
   mountPanel('clock', '#c-clock');
-  mountPanel('services', '#c-services');
   // The full map (framings, zoom, legend) lives on the main page; it is also a tab.
   // The map lives inside the round hub (compact); a click opens the full map in an animated pane.
   if (byId.has('map')) unmounts.push(mountCompact(q('#hub-map'), ctx));
   else q('#hub-map').remove();
+  unmounts.push(mountServiceCards(q('#c-svc-cards'), ctx));
   unmounts.push(mountReactive(q('#c-ring'), ctx, { select: families.select, view: ringView }));
 
   let current = null;

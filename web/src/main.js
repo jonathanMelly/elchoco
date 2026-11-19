@@ -74,7 +74,21 @@ const fadeOut = async (el) => {
   el.classList.remove('fading', 'intro');
   el.textContent = '';
 };
-if (fx) {
+if (fx && options.get('skipIntro')) {
+  // No gesture to unlock audio: create the sound engine now and let it start on the first click or key.
+  try {
+    sound = fx.createSound({ getOptions: () => options.all() });
+    sound.music('hud');
+    const unlock = () => {
+      sound.start();
+      for (const e of ['keydown', 'pointerdown']) globalThis.removeEventListener(e, unlock);
+    };
+    for (const e of ['keydown', 'pointerdown']) globalThis.addEventListener(e, unlock);
+  } catch (err) {
+    console.warn('son désactivé :', err);
+  }
+  scene?.setPhase('hud');
+} else if (fx) {
   try {
     await fx.showStart({ el: overlay, scene });
     sound = fx.createSound({ getOptions: () => options.all() });

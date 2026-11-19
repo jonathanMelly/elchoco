@@ -1,9 +1,11 @@
-import { TOPIC_TYPES, parseTopic, parseMessage, validatePayload, isHeartbeat } from './protocol.js';
+import { TOPIC_TYPES, parseTopic, parseMessage, validatePayload, isHeartbeat, retiredOnLabel } from './protocol.js';
 import { createFamilies } from './families.js';
 import { createClock } from './clock.js';
+import { createServices } from './services.js';
 
 const LOG_LIMIT = 200;
 const RAW_LIMIT = 200;
+const ORDER_LIMIT = 1000;
 const LEVELS = new Set(['info', 'warn', 'error']);
 
 /** Rebuilds the persisted activity list; anything malformed is dropped, never thrown. */
@@ -26,13 +28,23 @@ const PRESENCE_TEXT = {
   died: ['error', 'morte (dernière volonté reçue)'],
 };
 
+const SERVICE_TEXT = {
+  open: ['info', 'service en ligne'],
+  closed: ['warn', 'service à l\'arrêt'],
+  died: ['error', 'service tombé (dernière volonté reçue)'],
+};
+
 export function createStore({ root: initialRoot = 'elchoco', now = Date.now } = {}) {
   let root = initialRoot; // the backend announces the real HUD root (event: config)
   const families = createFamilies();
+  const services = createServices();
+  const orders = new Map(); // orderId -> latest status state (dispatch card)
+  const warned = new Set(); // senders already warned about a deprecated version
   const clock = createClock({ now });
   const listeners = new Set();
   const store = {
     families,
+    services,
     clock,
     log: [], // published by the families on elchoco/log/<famille>
     activity: [], // observed by this console (not a journal service)
@@ -76,18 +88,31 @@ export function createStore({ root: initialRoot = 'elchoco', now = Date.now } = 
       }
       if (raw === '') return;
 
-      const msg = parseMessage(raw);
+      const msg = parseMessage(raw, { now: receivedAt });
       if (!msg.ok) return reject(topic, raw, msg.reason);
       const { env } = msg;
       if (env.type !== TOPIC_TYPES[t.kind]) return reject(topic, raw, 'type incompatible avec le topic');
-      if (t.kind !== 'time' && env.from !== t.family) return reject(topic, raw, 'from différent du topic');
-      const checked = validatePayload(env.type, env.payload);
+      if (['vitrine', 'presence', 'log'].includes(t.kind) && env.from !== t.family) return reject(topic, raw, 'from différent du topic');
+      const checked = validatePayload(env.type, env.payload, msg.version);
       if (!checked.ok) return reject(topic, raw, checked.reason);
       const value = checked.value;
 
+      // A deprecated version is still read (degraded); the sender is told once, in the activity log.
+      if (msg.degraded && !warned.has(`${env.from}/${msg.version}`)) {
+        warned.add(`${env.from}/${msg.version}`);
+        record(env.from, 'warn', `publie en v${msg.version} (dépréciée, mode dégradé), retrait le ${retiredOnLabel(msg.version)}`, receivedAt);
+      }
+
       if (!retain) clock.observeNode(env.from, env.ts, receivedAt);
 
-      if (t.kind === 'vitrine' || t.kind === 'presence') {
+      if (t.kind === 'presence' && (value.kind === 'service' || (value.kind === undefined && services.has(t.family)))) {
+        const before = services.list().find((s) => s.id === t.family)?.state;
+        services.seen(t.family, receivedAt, value.state);
+        if (before !== value.state && SERVICE_TEXT[value.state]) {
+          const [level, text] = SERVICE_TEXT[value.state];
+          record(t.family, level, text, receivedAt);
+        }
+      } else if (t.kind === 'vitrine' || t.kind === 'presence') {
         const before = families.get(t.family);
         families.apply(t.kind, t.family, value, receivedAt);
         if (!before) record(t.family, 'info', 'apparue sur le réseau', receivedAt);
@@ -97,8 +122,21 @@ export function createStore({ root: initialRoot = 'elchoco', now = Date.now } = 
         }
       } else if (t.kind === 'time') {
         if (!retain) clock.observeTime(value.utc, receivedAt);
+        services.seen('time', receivedAt);
+        services.stat('time', { utc: value.utc });
+      } else if (t.kind === 'directory') {
+        services.stat('registry', { entries: value.entries, open: value.open, asOf: value.asOf }, retain ? undefined : receivedAt);
+      } else if (t.kind === 'status') {
+        // Latest state per order (status is retained: the burst on connect rebuilds the picture).
+        orders.delete(value.orderId);
+        orders.set(value.orderId, value.state);
+        if (orders.size > ORDER_LIMIT) orders.delete(orders.keys().next().value);
+        const counts = { pending: 0, reserved: 0, failed: 0 };
+        for (const state of orders.values()) counts[state === 'reserved' || state === 'failed' ? state : 'pending']++;
+        services.stat('dispatch', counts, retain ? undefined : receivedAt);
       } else if (t.kind === 'log') {
-        families.touch(t.family, receivedAt);
+        if (services.has(t.family)) services.seen(t.family, receivedAt);
+        else families.touch(t.family, receivedAt);
         if (!isHeartbeat(value) && !value.text.startsWith('hb')) {
           store.log.push({ from: env.from, level: value.level, text: value.text, ts: env.ts, receivedAt });
           if (store.log.length > LOG_LIMIT) store.log.splice(0, store.log.length - LOG_LIMIT);

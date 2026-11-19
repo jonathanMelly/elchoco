@@ -10,7 +10,7 @@ import { VALID_VITRINE, VITRINE_PAYLOAD, envelopeJson } from './fixtures.js';
 
 describe('TOPIC_TYPES', () => {
   it('maps kinds to envelope types', () => {
-    expect(TOPIC_TYPES).toEqual({ vitrine: 'chocolaterie', presence: 'presence', time: 'time', log: 'log' });
+    expect(TOPIC_TYPES).toEqual({ vitrine: 'chocolaterie', presence: 'presence', time: 'time', log: 'log', directory: 'directory', status: 'status' });
   });
 });
 
@@ -46,12 +46,11 @@ describe('parseMessage', () => {
     ['array', '[]'],
     ['null', 'null'],
     ['empty', ''],
-    ['v 2', envelopeJson({ v: 2 })],
+    ['v 3 (unsupported)', envelopeJson({ v: 3 })],
     ['no payload', envelopeJson({ payload: undefined })],
     ['array payload', envelopeJson({ payload: [] })],
     ['bad ts', envelopeJson({ ts: 'hier' })],
     ['bad id', envelopeJson({ id: '42' })],
-    ['extra key', envelopeJson({ x: 1 })],
     ['empty from', envelopeJson({ from: '' })],
     ['bad type', envelopeJson({ type: 'Bad Type' })],
   ])('rejects %s', (_n, raw) => {
@@ -115,5 +114,27 @@ describe('isHeartbeat', () => {
     expect(isHeartbeat({ level: 'info', text: 'hb sent=-1' })).toBe(false);
     expect(isHeartbeat({ level: 'info', text: 'hello' })).toBe(false);
     expect(isHeartbeat({ level: 'warn', text: 'hb sent=1' })).toBe(false);
+  });
+});
+
+describe('versions', () => {
+  const NOW_BEFORE = Date.parse('2026-11-19T00:00:00Z');
+  const NOW_AFTER = Date.parse('2026-12-12T00:00:00Z');
+  it('v2 ignores unknown envelope fields (tolerant reader)', () => {
+    const r = parseMessage(envelopeJson({ x: 1 }), { now: NOW_BEFORE });
+    expect(r).toMatchObject({ ok: true, version: 2, degraded: false });
+  });
+  it('v1 is read in degraded mode and keeps its strict envelope', () => {
+    expect(parseMessage(envelopeJson({ v: 1 }), { now: NOW_BEFORE })).toMatchObject({ ok: true, version: 1, degraded: true });
+    expect(parseMessage(envelopeJson({ v: 1, x: 1 }), { now: NOW_BEFORE }).ok).toBe(false);
+  });
+  it('v1 is refused from 12.12.2026', () => {
+    const r = parseMessage(envelopeJson({ v: 1 }), { now: NOW_AFTER });
+    expect(r).toEqual({ ok: false, reason: 'version v1 retirée depuis le 12.12.2026' });
+  });
+  it('presence kind is read from v2 only', () => {
+    expect(validatePayload('presence', { state: 'open', kind: 'service' }, 2)).toEqual({ ok: true, value: { state: 'open', kind: 'service' } });
+    expect(validatePayload('presence', { state: 'open', kind: 'service' }, 1)).toEqual({ ok: true, value: { state: 'open' } });
+    expect(validatePayload('presence', { state: 'open', kind: 'toaster' }, 2).ok).toBe(false);
   });
 });

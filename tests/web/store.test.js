@@ -16,6 +16,59 @@ describe('store.ingest', () => {
     expect(s.rejected).toBe(0);
   });
 
+  it('a presence announcing kind: service feeds services, not families (any id)', () => {
+    const s = createStore();
+    s.ingest('elchoco/presence/web-order', presence('open', { from: 'web-order', payload: { state: 'open', kind: 'service' } }));
+    expect(s.families.list()).toHaveLength(0);
+    expect(s.services.list().find((x) => x.id === 'web-order')).toMatchObject({ state: 'open' });
+    expect(s.rejected).toBe(0);
+  });
+
+  it('a v1 presence of a legacy id still lands in services (degraded fallback), and the sender is warned once', () => {
+    const s = createStore();
+    s.ingest('elchoco/presence/time', presence('open', { v: 1, from: 'time' }));
+    s.ingest('elchoco/presence/time', presence('closed', { v: 1, from: 'time' }));
+    s.ingest('elchoco/presence/registry', presence('died', { v: 1, from: 'registry' }));
+    expect(s.families.list()).toHaveLength(0);
+    const byId = Object.fromEntries(s.services.list().map((x) => [x.id, x.state]));
+    expect(byId).toEqual({ time: 'closed', registry: 'died', dispatch: 'unknown' });
+    const warns = s.activity.filter((a) => /dépréciée/.test(a.text));
+    expect(warns.map((a) => a.from)).toEqual(['time', 'registry']);
+    expect(warns[0].text).toMatch(/12.12.2026/);
+  });
+
+  it('registry and dispatch cards get their figures from directory and status', () => {
+    const s = createStore();
+    const ID = (n) => `0b9a7a8e-5c1f-4d0a-8f43-2d6c1f7a9e5${n}`;
+    const house = (id, state) => ({ id, name: id, zone: ['1003'], state, skus: [] });
+    s.ingest('elchoco/directory', envelopeJson({ type: 'directory', from: 'registry', payload: { asOf: '2026-11-19T10:00:00Z', houses: [house('a', 'open'), house('b', 'closed')] } }));
+    const status = (n, state) => s.ingest(`elchoco/status/${ID(n)}`, envelopeJson({ type: 'status', from: 'dispatch', payload: { orderId: ID(n), state } }));
+    status(1, 'received');
+    status(2, 'proposed');
+    status(3, 'reserved');
+    status(1, 'reserved'); // latest state wins
+    status(4, 'failed');
+    const by = Object.fromEntries(s.services.list().map((x) => [x.id, x.stats]));
+    expect(by.registry).toMatchObject({ entries: 2, open: 1 });
+    expect(by.dispatch).toEqual({ pending: 1, reserved: 2, failed: 1 });
+    expect(s.rejected).toBe(0);
+    expect(s.families.list()).toHaveLength(0);
+  });
+
+  it('received() lists only services heard from, list() also keeps the placeholders', () => {
+    const s = createStore();
+    expect(s.services.received()).toEqual([]);
+    expect(s.services.list().map((x) => x.id)).toEqual(['time', 'registry', 'dispatch']);
+    s.ingest('elchoco/presence/web-order', presence('open', { from: 'web-order', payload: { state: 'open', kind: 'service' } }));
+    expect(s.services.received().map((x) => x.id)).toEqual(['web-order']);
+  });
+
+  it('kind: family wins over the legacy list', () => {
+    const s = createStore();
+    s.ingest('elchoco/presence/time', presence('open', { from: 'time', payload: { state: 'open', kind: 'family' } }));
+    expect(s.families.list().map((f) => f.id)).toEqual(['time']);
+  });
+
   it('non-retained time syncs the clock, retained time does not', () => {
     const now = Date.parse('2026-11-14T10:00:00Z');
     const s = createStore({ now: () => now });

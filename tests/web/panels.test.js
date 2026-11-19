@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import families, { ringView } from '../../web/src/panels/families.js';
 import clock from '../../web/src/panels/clock.js';
-import services, { SERVICE_SLOTS } from '../../web/src/panels/services.js';
+import services from '../../web/src/panels/services.js';
 import myFamily from '../../web/src/panels/my-family.js';
 import log from '../../web/src/panels/log.js';
 import optionsPanel from '../../web/src/panels/options.js';
@@ -108,21 +108,13 @@ describe('clock view', () => {
 });
 
 describe('services view', () => {
-  it('lists the six slots and waits for Caisse', () => {
-    const html = services.view({ clockStatus: 'local', logCount: 0, seenKinds: [] });
-    for (const label of ['Horloge', 'Annuaire', 'Journal', 'Caisse', 'Marché', 'Moniteur']) expect(html).toContain(label);
-    expect(html).toContain('EN ATTENTE');
-    expect(SERVICE_SLOTS).toHaveLength(6);
+  it('lists only the services received, no placeholder', () => {
+    const html = services.view({ now: 10_000, services: [{ id: 'web-order', label: 'web-order', role: '', state: 'open', lastSeen: 9_000, stats: {} }] });
+    expect(html).toContain('web-order');
+    expect(html).not.toMatch(/Caisse|Marché|Moniteur|Registry|Dispatch/);
   });
-  it('activates Caisse when its topic root was seen', () => {
-    const inactive = services.view({ clockStatus: 'synced', logCount: 0, seenKinds: [] });
-    const active = services.view({ clockStatus: 'synced', logCount: 0, seenKinds: ['caisse'] });
-    const count = (s) => (s.match(/EN ATTENTE/g) ?? []).length;
-    expect(count(active)).toBe(count(inactive) - 1);
-  });
-  it('horloge activates from state, journal does not (no service yet)', () => {
-    const html = services.view({ clockStatus: 'synced', logCount: 3, seenKinds: [] });
-    expect((html.match(/EN ATTENTE/g) ?? []).length).toBe(5);
+  it('says so when nothing was received', () => {
+    expect(services.view({ now: 0, services: [] })).toContain('aucun service annoncé');
   });
 });
 
@@ -169,11 +161,6 @@ describe('journal local view', () => {
     expect(html).toContain('publié');
     expect(html.indexOf('observé')).toBeLessThan(html.indexOf('publié'));
     expect(html).not.toContain('<b>observé');
-  });
-  it('the Journal slot waits for a real journal service', () => {
-    const html = services.view({ clockStatus: 'synced', logCount: 3, seenKinds: ['log'] });
-    expect(html).toMatch(/data-id="journal"[^>]*>(?:(?!<\/li>).)*EN ATTENTE/);
-    expect(services.view({ clockStatus: 'synced', logCount: 0, seenKinds: ['journal'] })).not.toMatch(/data-id="journal"[^>]*>(?:(?!<\/li>).)*EN ATTENTE/);
   });
 });
 
@@ -227,5 +214,24 @@ describe('registry', () => {
       expect(typeof p.title).toBe('string');
       for (const fn of ['select', 'view', 'mount']) expect(typeof p[fn]).toBe('function');
     }
+  });
+});
+
+describe('service cards', () => {
+  it('shows the figures of each service and escapes them', async () => {
+    const { view } = await import('../../web/src/panels/service-cards.js');
+    const html = view({
+      now: 10_000,
+      services: [
+        { id: 'time', label: 'Temps', role: 'r', state: 'open', lastSeen: 9_500, stats: { utc: '2026-11-19T10:00:05Z' } },
+        { id: 'registry', label: 'Registry', role: 'r', state: 'open', lastSeen: 9_000, stats: { entries: 7, open: 3 } },
+        { id: 'dispatch', label: 'Dispatch', role: 'r', state: 'unknown', lastSeen: 0, stats: { pending: 2, reserved: 5, failed: 1 } },
+        { id: 'x', label: '<b>x</b>', role: '', state: 'open', lastSeen: 1, stats: {} },
+      ],
+    });
+    expect(html).toContain('10:00:05 UTC');
+    expect(html).toContain('7 entrées (3 ouvertes)');
+    expect(html).toMatch(/en cours<\/span><b>2</);
+    expect(html).not.toContain('<b>x</b>');
   });
 });

@@ -1,5 +1,5 @@
 export const VALID_VITRINE = JSON.stringify({
-  v: 1,
+  v: 2,
   id: '3d6b1c52-7e0a-4c1e-9f55-2a4c8e6b9d10',
   from: 'maison-dubois',
   to: '*',
@@ -43,7 +43,7 @@ export const HOSTILE = [
   { name: 'plain text', topic: V, raw: 'bonjour le cartel' },
   { name: 'empty array', topic: V, raw: '[]' },
   { name: 'null', topic: V, raw: 'null' },
-  { name: 'v 2', topic: V, raw: envelopeJson({ v: 2 }) },
+  { name: 'v 3 (unsupported)', topic: V, raw: envelopeJson({ v: 3 }) },
   { name: 'no payload', topic: V, raw: envelopeJson({ payload: undefined }) },
   { name: 'bad ts', topic: V, raw: envelopeJson({ ts: 'hier' }) },
   { name: 'bad id', topic: V, raw: envelopeJson({ id: '42' }) },
